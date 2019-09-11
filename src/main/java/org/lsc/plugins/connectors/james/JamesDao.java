@@ -47,8 +47,11 @@ import java.util.stream.Collectors;
 
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
 
 import org.apache.commons.lang.NotImplementedException;
 import org.glassfish.jersey.client.filter.HttpBasicAuthFilter;
@@ -96,13 +99,39 @@ public class JamesDao {
 			.collect(Collectors.toList());
 	}
 
-	public boolean createAliases(LscModifications lm) {
-		// TODO Auto-generated method stub
-		return false;
+	public boolean createAliases(User user, List<Alias> aliasesToAdd) {
+		return aliasesToAdd.stream()
+			.reduce(true,
+				(result, alias) -> result && createAlias(user, alias),
+				(result1, result2) -> result1 && result2); 
+	}
+
+	private boolean createAlias(User user, Alias alias) {
+		WebTarget target = aliasesClient.path(user.email).path("sources").path(alias.source);
+		LOGGER.debug("PUTting alias: " + target.getUri().toString());
+		Response response = target.request().put(Entity.text(""));
+		String rawResponseBody = response.readEntity(String.class);
+		response.close();
+		if (checkResponse(response)) {
+			LOGGER.debug("PUT is successful");
+			return true;
+		} else {
+			LOGGER.error(String.format("Error %d (%s - %s) while creating alias: %s",
+					response.getStatus(),
+					response.getStatusInfo(),
+					rawResponseBody,
+					target.getUri().toString()));
+			return false;
+		}
+	}
+
+	private static boolean checkResponse(Response response) {
+		return Status.Family.familyOf(response.getStatus()) == Status.Family.SUCCESSFUL;
 	}
 
 	public boolean updateAliases(User user, List<Alias> updatedAliases) {
-		// TODO Auto-generated method stub
+//		List<Alias> aliasesInDestination = getAliases(user.email);
+//		List<Alias> aliasesToAdd  = 
 		return false;
 	}
 

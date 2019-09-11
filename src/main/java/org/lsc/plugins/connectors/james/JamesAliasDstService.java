@@ -45,6 +45,7 @@ package org.lsc.plugins.connectors.james;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import javax.ws.rs.NotFoundException;
@@ -68,6 +69,7 @@ import org.lsc.service.IWritableService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 public class JamesAliasDstService implements IWritableService {
@@ -183,6 +185,12 @@ public class JamesAliasDstService implements IWritableService {
 	
 	@Override
 	public boolean apply(LscModifications lm) throws LscServiceException {
+		if (lm.getMainIdentifier() == null) {
+			LOGGER.error("MainIdentifier is needed to update");
+			return false;
+		}
+		User user = new User(lm.getMainIdentifier());
+		List<Alias> aliasesToCreate = aliasesFromSource(lm);
 		try {
 			switch(lm.getOperation()) {
 			case CHANGE_ID:
@@ -191,18 +199,14 @@ public class JamesAliasDstService implements IWritableService {
 				return true;
 			case CREATE_OBJECT:
 				LOGGER.debug("Creating James aliases: " + lm.getMainIdentifier());
-				return jamesDao.createAliases(lm);
+				return jamesDao.createAliases(user, aliasesToCreate);
 			case UPDATE_OBJECT:
 				LOGGER.debug("Getting James aliases for update: " + lm.getMainIdentifier());
-//				
-//				List<Alias> aliasesInSource = lm.getModificationsItemsByHash()
-//						.get("sources")
-//                        .stream()
-//                        .map(alias -> new Alias(((String) alias)))
-//                        .collect(Collectors.toList());
-//				LOGGER.debug("Modifying James aliases: " + lm.getMainIdentifier() + " with: " + lm.getModificationsItemsByHash());
-//		
-//				
+				
+				List<Alias> aliasesInSource = aliasesFromSource(lm);
+				LOGGER.debug("Modifying James aliases: " + lm.getMainIdentifier() + " with: " + lm.getModificationsItemsByHash());
+		
+				
 //				return jamesDao.updateAliases(new User(lm.getMainIdentifier()), aliasesInSource);
 				return false;
 			case DELETE_OBJECT:
@@ -218,6 +222,16 @@ public class JamesAliasDstService implements IWritableService {
 			return false;
 		}
 
+	}
+
+	private List<Alias> aliasesFromSource(LscModifications lm) {
+		return Optional.ofNullable(lm.getModificationsItemsByHash()
+				.get("sources"))
+				.map(sources -> sources
+					.stream()
+					.map(alias -> new Alias(((String) alias)))
+					.collect(Collectors.toList()))
+				.orElse(ImmutableList.of());
 	}
 
 
