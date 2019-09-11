@@ -45,6 +45,8 @@ package org.lsc.plugins.connectors.james.beans;
 import org.codehaus.jackson.annotate.JsonIgnoreProperties;
 import org.lsc.LscDatasets;
 
+import com.google.common.base.Objects;
+
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Alias {
 
@@ -61,5 +63,17 @@ public class Alias {
 		LscDatasets datasets = new LscDatasets();
 		datasets.put("source", source);
 		return datasets;
+	}
+	
+	public final boolean equals(Object other) {
+		if (!(other instanceof Alias)) {
+			return false;
+		}
+		Alias alias = (Alias)other;
+		return Objects.equal(source, alias.source);
+	}
+
+	public final int hashCode() {
+         return Objects.hashCode(source);
 	}
 }

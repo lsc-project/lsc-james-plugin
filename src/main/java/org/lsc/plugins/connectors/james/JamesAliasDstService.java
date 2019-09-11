@@ -52,7 +52,6 @@ import javax.ws.rs.NotFoundException;
 import javax.ws.rs.ProcessingException;
 import javax.ws.rs.WebApplicationException;
 
-import org.apache.commons.lang.NotImplementedException;
 import org.lsc.LscDatasets;
 import org.lsc.LscModifications;
 import org.lsc.beans.IBean;
@@ -190,7 +189,6 @@ public class JamesAliasDstService implements IWritableService {
 			return false;
 		}
 		User user = new User(lm.getMainIdentifier());
-		List<Alias> aliasesToCreate = aliasesFromSource(lm);
 		try {
 			switch(lm.getOperation()) {
 			case CHANGE_ID:
@@ -199,16 +197,18 @@ public class JamesAliasDstService implements IWritableService {
 				return true;
 			case CREATE_OBJECT:
 				LOGGER.debug("Creating James aliases: " + lm.getMainIdentifier());
+				List<Alias> aliasesToCreate = aliasesFromSource(lm).orElse(ImmutableList.of());
 				return jamesDao.createAliases(user, aliasesToCreate);
 			case UPDATE_OBJECT:
 				LOGGER.debug("Getting James aliases for update: " + lm.getMainIdentifier());
 				
-				List<Alias> aliasesInSource = aliasesFromSource(lm);
-				LOGGER.debug("Modifying James aliases: " + lm.getMainIdentifier() + " with: " + lm.getModificationsItemsByHash());
-		
+				Optional<List<Alias>> maybeAliasesInSource = aliasesFromSource(lm);
 				
-//				return jamesDao.updateAliases(new User(lm.getMainIdentifier()), aliasesInSource);
-				return false;
+				return maybeAliasesInSource.map(aliasesInSource -> {
+					LOGGER.debug("Modifying James aliases: " + lm.getMainIdentifier() + " with: " + lm.getModificationsItemsByHash());
+					return jamesDao.updateAliases(user, aliasesInSource);
+				}).orElse(false);
+			
 			case DELETE_OBJECT:
 				LOGGER.debug("Deleting James aliases: " + lm.getMainIdentifier());
 				return jamesDao.deleteAlias(lm.getMainIdentifier());
@@ -216,6 +216,10 @@ public class JamesAliasDstService implements IWritableService {
 				LOGGER.error(String.format("Unknown operation %s", lm.getOperation()));
 				return false;
 			}
+		} catch (NotFoundException e) {
+			LOGGER.error(String.format("NotFoundException while writing (%s)", e));
+			LOGGER.debug(e.toString(), e);
+			return false;
 		} catch (ProcessingException e) {
 			LOGGER.error(String.format("ProcessingException while writing (%s)", e));
 			LOGGER.debug(e.toString(), e);
@@ -224,16 +228,14 @@ public class JamesAliasDstService implements IWritableService {
 
 	}
 
-	private List<Alias> aliasesFromSource(LscModifications lm) {
+	private Optional<List<Alias>> aliasesFromSource(LscModifications lm) {
 		return Optional.ofNullable(lm.getModificationsItemsByHash()
 				.get("sources"))
 				.map(sources -> sources
 					.stream()
 					.map(alias -> new Alias(((String) alias)))
-					.collect(Collectors.toList()))
-				.orElse(ImmutableList.of());
+					.collect(Collectors.toList()));		
 	}
-
 
 	@Override
 	public List<String> getWriteDatasetIds() {

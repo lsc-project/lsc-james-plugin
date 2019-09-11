@@ -368,6 +368,140 @@ public class JamesAliasDstServiceTest {
 			.body("[1].source", equalTo(alias2));
 	}
 	
+	@Test
+	public void updateWithNoSourceAttributeModificationShouldFail() throws Exception {
+		String email = "user@james.org";
+		String alias = "alias-to-user@james.org";
+		
+		createAlias(email, alias);
+		
+		testee = new JamesAliasDstService(task);
+
+		LscModifications modifications = new LscModifications(LscModificationType.UPDATE_OBJECT);
+		modifications.setMainIdentifer(email);
+
+		modifications.setLscAttributeModifications(ImmutableList.of());
+
+		boolean applied = testee.apply(modifications);
+
+		assertThat(applied).isFalse();
+		
+		with()
+		.get(email)
+		.then()
+			.body("source", hasSize(1));
+	}
+
+	
+	
+	@Test
+	public void updateWithNoAliasShouldClearAliasListOfUser() throws Exception {
+		String email = "user@james.org";
+		String alias = "alias-to-user@james.org";
+		
+		createAlias(email, alias);
+		
+		testee = new JamesAliasDstService(task);
+
+		LscModifications modifications = new LscModifications(LscModificationType.UPDATE_OBJECT);
+		modifications.setMainIdentifer(email);
+		LscDatasetModification aliasesModification = new LscDatasetModification(
+				LscDatasetModificationType.REPLACE_VALUES, "sources", ImmutableList.of());
+		modifications.setLscAttributeModifications(ImmutableList.of(aliasesModification));
+
+		boolean applied = testee.apply(modifications);
+
+		assertThat(applied).isTrue();
+		with()
+		.get(email)
+		.then()
+			.body("source", hasSize(0));
+	}
+
+	@Test
+	public void updateToAnAddressWithoutAliasesShouldFail() throws Exception {
+		String email = "user@james.org";
+		String alias = "alias-to-user@james.org";
+		
+		testee = new JamesAliasDstService(task);
+
+		LscModifications modifications = new LscModifications(LscModificationType.UPDATE_OBJECT);
+		modifications.setMainIdentifer(email);
+
+		LscDatasetModification aliasesModification = new LscDatasetModification(
+				LscDatasetModificationType.REPLACE_VALUES, "sources", ImmutableList.of(alias));
+		
+		modifications.setLscAttributeModifications(ImmutableList.of(aliasesModification));
+
+		boolean applied = testee.apply(modifications);
+
+		assertThat(applied).isFalse();
+		with()
+		.get(email)
+		.then()
+			.body("source", hasSize(0));
+	}
+	
+	@Test
+	public void updateWithPreviousAliasPlusOneShouldAddTheNewAlias() throws Exception {
+		String email = "user@james.org";
+		String alias = "alias-to-user@james.org";
+		String aliasToAdd = "alias-to-user_bis@james.org";
+		createAlias(email, alias);
+		
+		testee = new JamesAliasDstService(task);
+
+		LscModifications modifications = new LscModifications(LscModificationType.UPDATE_OBJECT);
+		modifications.setMainIdentifer(email);
+
+		LscDatasetModification aliasesModification = new LscDatasetModification(
+				LscDatasetModificationType.REPLACE_VALUES, "sources", ImmutableList.of(alias, aliasToAdd));
+		
+		modifications.setLscAttributeModifications(ImmutableList.of(aliasesModification));
+
+		boolean applied = testee.apply(modifications);
+
+		assertThat(applied).isTrue();
+		with()
+		.get(email)
+		.then()
+			.body("source", hasSize(2))
+			.body("[0].source", equalTo(alias))
+			.body("[1].source", equalTo(aliasToAdd));
+	}
+	
+	@Test
+	public void updateWithPreviousAliasesMinusOneShouldRemoveTheRemovedOne() throws Exception {
+		String email = "user@james.org";
+		String alias1 = "alias1-to-user@james.org";
+		String alias2 = "alias2-to-user@james.org";
+		String alias3 = "alias3-to-user@james.org";
+		createAlias(email, alias1);
+		createAlias(email, alias2);
+		createAlias(email, alias3);
+		
+		testee = new JamesAliasDstService(task);
+
+		LscModifications modifications = new LscModifications(LscModificationType.UPDATE_OBJECT);
+		modifications.setMainIdentifer(email);
+
+		LscDatasetModification aliasesModification = new LscDatasetModification(
+				LscDatasetModificationType.REPLACE_VALUES, "sources", ImmutableList.of(alias1, alias3));
+		
+		modifications.setLscAttributeModifications(ImmutableList.of(aliasesModification));
+
+		boolean applied = testee.apply(modifications);
+
+		assertThat(applied).isTrue();
+		with()
+		.get(email)
+		.then()
+			.body("source", hasSize(2))
+			.body("[0].source", equalTo(alias1))
+			.body("[1].source", equalTo(alias3));
+	}
+	
+	
 	private void createAlias(String user, String alias) {
 		with()
 		.put("/{user}/sources/{alias}", user, alias)

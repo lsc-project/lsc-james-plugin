@@ -42,6 +42,7 @@
  */
 package org.lsc.plugins.connectors.james;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -125,14 +126,41 @@ public class JamesDao {
 		}
 	}
 
+	public boolean removeAliases(User user, List<Alias> aliasesToRemove) {
+		return aliasesToRemove.stream()
+			.reduce(true,
+				(result, alias) -> result && removeAlias(user, alias),
+				(result1, result2) -> result1 && result2); 
+	}
+
+	private boolean removeAlias(User user, Alias alias) {
+		WebTarget target = aliasesClient.path(user.email).path("sources").path(alias.source);
+		LOGGER.debug("DELETEting alias: " + target.getUri().toString());
+		Response response = target.request().delete();
+		String rawResponseBody = response.readEntity(String.class);
+		response.close();
+		if (checkResponse(response)) {
+			LOGGER.debug("DELETE is successful");
+			return true;
+		} else {
+			LOGGER.error(String.format("Error %d (%s - %s) while deleting alias: %s",
+					response.getStatus(),
+					response.getStatusInfo(),
+					rawResponseBody,
+					target.getUri().toString()));
+			return false;
+		}
+	}
+	
 	private static boolean checkResponse(Response response) {
 		return Status.Family.familyOf(response.getStatus()) == Status.Family.SUCCESSFUL;
 	}
 
 	public boolean updateAliases(User user, List<Alias> updatedAliases) {
-//		List<Alias> aliasesInDestination = getAliases(user.email);
-//		List<Alias> aliasesToAdd  = 
-		return false;
+		List<Alias> aliasesInDestination = getAliases(user.email);
+		List<Alias> aliasesToAdd  =  computeAliasToAdd(updatedAliases, aliasesInDestination);
+		List<Alias> aliasesToRemove  =  computeAliasToRemove(updatedAliases, aliasesInDestination);
+		return removeAliases(user, aliasesToRemove) && createAliases(user, aliasesToAdd);
 	}
 
 	public boolean deleteAlias(String mainIdentifier) {
@@ -140,5 +168,17 @@ public class JamesDao {
 		return false;
 	}
 	
+	private List<Alias> computeAliasToAdd(List<Alias> sourceAliases, List<Alias> destinationAliases) {
+		return sourceAliases.stream()
+				.filter(alias -> !destinationAliases.contains(alias))
+				.collect(Collectors.toList());
+	}
+	
+
+	private List<Alias> computeAliasToRemove(List<Alias> sourceAliases, List<Alias> destinationAliases) {
+		return destinationAliases.stream()
+				.filter(alias -> !sourceAliases.contains(alias))
+				.collect(Collectors.toList());
+	}
 	
 }
