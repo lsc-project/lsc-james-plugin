@@ -43,10 +43,14 @@
 package org.lsc.plugins.connectors.james;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
+import javax.ws.rs.NotFoundException;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.GenericType;
 
+import org.apache.commons.lang.NotImplementedException;
 import org.glassfish.jersey.client.filter.HttpBasicAuthFilter;
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.lsc.LscModifications;
@@ -74,13 +78,22 @@ public class JamesDao {
 	}
 
 	public List<Alias> getAliases(String email) {
-		// TODO Auto-generated method stub
-		return null;
+		WebTarget target = aliasesClient.path(email);
+		LOGGER.debug("GETting aliases: " + target.getUri().toString());
+		List<Alias> aliases = target.request().get(new GenericType<List<Alias>>(){});
+		if (aliases.isEmpty()) {
+			throw new NotFoundException();
+		}
+		return aliases;
 	}
 
 	public List<User> getUsersList() {
-		// TODO Auto-generated method stub
-		return null;
+		WebTarget target = aliasesClient.path("");
+		LOGGER.debug("GETting users with alias list: " + target.getUri().toString());
+		List<String> users = target.request().get(new GenericType<List<String>>(){});
+		return users.stream()
+			.map(User::new)
+			.collect(Collectors.toList());
 	}
 
 	public boolean createAliases(LscModifications lm) {

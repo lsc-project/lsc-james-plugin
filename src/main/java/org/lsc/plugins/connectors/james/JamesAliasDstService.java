@@ -45,6 +45,7 @@ package org.lsc.plugins.connectors.james;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.ProcessingException;
@@ -120,7 +121,7 @@ public class JamesAliasDstService implements IWritableService {
 		}
 		try {
 			List<Alias> aliases = jamesDao.getAliases(email);
-			return aliasesToBean(aliases);
+			return aliasesToBean(email, aliases);
 		} catch (ProcessingException e) {
 			LOGGER.error(String.format("ProcessingException while getting bean %s/%s (%s)",
 					pivotName, email, e));
@@ -142,11 +143,21 @@ public class JamesAliasDstService implements IWritableService {
 
 	}
 
-	private IBean aliasesToBean(List<Alias> aliases) throws InstantiationException, IllegalAccessException {
+	private IBean aliasesToBean(String email, List<Alias> aliases) throws InstantiationException, IllegalAccessException {
 		IBean bean = beanClass.newInstance();
-//		bean.setMainIdentifier(group.getEmail());
-//		bean.setDatasets(group.toDatasets());
+		bean.setMainIdentifier(email);
+		bean.setDatasets(toDataset(email, aliases));
 		return bean;
+	}
+
+	private LscDatasets toDataset(String email, List<Alias> aliases) {
+		LscDatasets datasets = new LscDatasets();
+		datasets.put("email", email);
+		List<String> aliasesAsStringList = aliases.stream()
+			.map(alias -> alias.source)
+			.collect(Collectors.toList());
+		datasets.put("sources", aliasesAsStringList);
+		return datasets;
 	}
 
 	@Override
@@ -183,10 +194,17 @@ public class JamesAliasDstService implements IWritableService {
 				return jamesDao.createAliases(lm);
 			case UPDATE_OBJECT:
 				LOGGER.debug("Getting James aliases for update: " + lm.getMainIdentifier());
-				List<Alias> aliases = jamesDao.getAliases(lm.getMainIdentifier());
-				LOGGER.debug("Modifying James aliases: " + lm.getMainIdentifier() + " with: " + lm.getModificationsItemsByHash());
-				List<Alias> updatedAliases = computeModifications(aliases);
-				return jamesDao.updateAliases(new User(lm.getMainIdentifier()), updatedAliases);
+//				
+//				List<Alias> aliasesInSource = lm.getModificationsItemsByHash()
+//						.get("sources")
+//                        .stream()
+//                        .map(alias -> new Alias(((String) alias)))
+//                        .collect(Collectors.toList());
+//				LOGGER.debug("Modifying James aliases: " + lm.getMainIdentifier() + " with: " + lm.getModificationsItemsByHash());
+//		
+//				
+//				return jamesDao.updateAliases(new User(lm.getMainIdentifier()), aliasesInSource);
+				return false;
 			case DELETE_OBJECT:
 				LOGGER.debug("Deleting James aliases: " + lm.getMainIdentifier());
 				return jamesDao.deleteAlias(lm.getMainIdentifier());
@@ -202,9 +220,6 @@ public class JamesAliasDstService implements IWritableService {
 
 	}
 
-	private List<Alias> computeModifications(List<Alias> aliases) {
-		throw new NotImplementedException();
-	}
 
 	@Override
 	public List<String> getWriteDatasetIds() {

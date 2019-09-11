@@ -50,6 +50,13 @@ public class Alias {
 
 	public String source;
 	
+	public Alias() {
+	}
+	
+	public Alias(String source) {
+		this.source = source;
+	}
+
 	public LscDatasets toDatasets() {
 		LscDatasets datasets = new LscDatasets();
 		datasets.put("source", source);
