@@ -501,6 +501,64 @@ public class JamesAliasDstServiceTest {
 			.body("[1].source", equalTo(alias3));
 	}
 	
+	@Test
+	public void deleteShouldRemoveTheAliasesOfTheUser() throws Exception {
+		String email = "user@james.org";
+		String alias1 = "alias1-to-user@james.org";
+		String alias2 = "alias2-to-user@james.org";
+		createAlias(email, alias1);
+		createAlias(email, alias2);
+		
+		testee = new JamesAliasDstService(task);
+
+		LscModifications modifications = new LscModifications(LscModificationType.DELETE_OBJECT);
+		modifications.setMainIdentifer(email);
+
+	    modifications.setLscAttributeModifications(ImmutableList.of());
+
+		boolean applied = testee.apply(modifications);
+
+		assertThat(applied).isTrue();
+		with()
+		.get(email)
+		.then()
+			.body("source", hasSize(0));
+	}
+	
+	@Test
+	public void deleteShouldNotRemoveTheAliasesOfOthers() throws Exception {
+		String email = "user@james.org";
+		String alias1 = "alias1-to-user@james.org";
+		String alias2 = "alias2-to-user@james.org";
+		createAlias(email, alias1);
+		createAlias(email, alias2);
+		
+		String emailUser2 = "user2@james.org";
+		String alias1User2 = "alias1-to-user2@james.org";
+		String alias2User2 = "alias2-to-user2@james.org";
+		createAlias(emailUser2, alias1User2);
+		createAlias(emailUser2, alias2User2);
+		
+		testee = new JamesAliasDstService(task);
+
+		LscModifications modifications = new LscModifications(LscModificationType.DELETE_OBJECT);
+		modifications.setMainIdentifer(email);
+
+	    modifications.setLscAttributeModifications(ImmutableList.of());
+
+		boolean applied = testee.apply(modifications);
+
+		assertThat(applied).isTrue();
+		with()
+		.get(email)
+		.then()
+			.body("source", hasSize(0));
+		
+		with()
+		.get(emailUser2)
+		.then()
+			.body("source", hasSize(2));
+	}
 	
 	private void createAlias(String user, String alias) {
 		with()

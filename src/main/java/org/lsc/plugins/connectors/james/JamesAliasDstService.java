@@ -211,7 +211,7 @@ public class JamesAliasDstService implements IWritableService {
 			
 			case DELETE_OBJECT:
 				LOGGER.debug("Deleting James aliases: " + lm.getMainIdentifier());
-				return jamesDao.deleteAlias(lm.getMainIdentifier());
+				return jamesDao.deleteAlias(user);
 			default:
 				LOGGER.error(String.format("Unknown operation %s", lm.getOperation()));
 				return false;

@@ -42,7 +42,6 @@
  */
 package org.lsc.plugins.connectors.james;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -54,10 +53,8 @@ import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
-import org.apache.commons.lang.NotImplementedException;
 import org.glassfish.jersey.client.filter.HttpBasicAuthFilter;
 import org.glassfish.jersey.jackson.JacksonFeature;
-import org.lsc.LscModifications;
 import org.lsc.configuration.TaskType;
 import org.lsc.plugins.connectors.james.beans.Alias;
 import org.lsc.plugins.connectors.james.beans.User;
@@ -163,9 +160,9 @@ public class JamesDao {
 		return removeAliases(user, aliasesToRemove) && createAliases(user, aliasesToAdd);
 	}
 
-	public boolean deleteAlias(String mainIdentifier) {
-		// TODO Auto-generated method stub
-		return false;
+	public boolean deleteAlias(User user) {
+		List<Alias> aliasesToRemove = getAliases(user.email);
+		return removeAliases(user, aliasesToRemove);
 	}
 	
 	private List<Alias> computeAliasToAdd(List<Alias> sourceAliases, List<Alias> destinationAliases) {
