@@ -39,7 +39,11 @@ The destination attribute for the LSC aliases connector is named `sources`.
 
 ### Configuration
 
-WIP, we'll need a JWT token to connect to James.
+The plugin connection needs a JWT token to connect to James. To configure this JWT token, set the `password` field of the plugin connection as the JWT token you want to use.
+
+The `url` field of the plugin connection must be set to the URL of James' webadmin.
+
+The `username` field of the plugin is ignored for now.
 
 ### Usage
 

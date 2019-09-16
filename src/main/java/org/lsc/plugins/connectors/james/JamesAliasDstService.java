@@ -101,7 +101,7 @@ public class JamesAliasDstService implements IWritableService {
 			beanClass = (Class<IBean>) Class.forName(task.getBean());
 			connection = (PluginConnectionType) service.getConnection().getReference();
 			
-			jamesDao = new JamesDao(connection.getUrl(), connection.getUsername(), connection.getPassword(), task);
+			jamesDao = new JamesDao(connection.getUrl(), connection.getPassword(), task);
 			
 		} catch (ClassNotFoundException e) {
 			throw new LscServiceConfigurationException(e);

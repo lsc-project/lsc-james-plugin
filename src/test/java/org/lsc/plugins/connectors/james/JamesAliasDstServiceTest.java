@@ -52,11 +52,20 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.io.FileReader;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyFactory;
+import java.security.Security;
+import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
+import java.time.Instant;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.http.HttpStatus;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.openssl.PEMReader;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -72,8 +81,11 @@ import org.lsc.configuration.PluginDestinationServiceType;
 import org.lsc.configuration.ServiceType.Connection;
 import org.lsc.configuration.TaskType;
 import org.lsc.plugins.connectors.james.generated.JamesAliasService;
+import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
 
+import com.auth0.jwt.JWT;
+import com.auth0.jwt.algorithms.Algorithm;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
@@ -93,9 +105,12 @@ public class JamesAliasDstServiceTest {
 	private JamesAliasDstService testee;
 
 	@BeforeAll
-	static void setup() {
+	static void setup() throws Exception {
 		james = new GenericContainer<>("linagora/james-memory:openpaas-1.5.2");
-		james.withExposedPorts(JAMES_WEBADMIN_PORT).start();
+		james.withExposedPorts(JAMES_WEBADMIN_PORT)
+			.withFileSystemBind("./src/test/resources/conf/jwt_publickey", "/root/conf/jwt_publickey", BindMode.READ_ONLY)
+			.withFileSystemBind("./src/test/resources/conf/webadmin.properties", "/root/conf/webadmin.properties", BindMode.READ_ONLY)
+			.start();
 
 		MAPPED_JAMES_WEBADMIN_PORT = james.getMappedPort(JAMES_WEBADMIN_PORT);
 		JamesAliasService jamesAliasService = mock(JamesAliasService.class);
@@ -105,26 +120,52 @@ public class JamesAliasDstServiceTest {
 		task = mock(TaskType.class);
 
 		when(jamesConnection.getUrl()).thenReturn("http://localhost:" + MAPPED_JAMES_WEBADMIN_PORT);
-		when(jamesConnection.getUsername()).thenReturn("admin@open-paas.org");
-		when(jamesConnection.getPassword()).thenReturn("secret");
+		when(jamesConnection.getPassword()).thenReturn(jwtToken());
 		when(connection.getReference()).thenReturn(jamesConnection);
 		when(jamesAliasService.getConnection()).thenReturn(connection);
 		when(task.getBean()).thenReturn("org.lsc.beans.SimpleBean");
 		when(task.getPluginDestinationService()).thenReturn(pluginDestinationService);
 		when(pluginDestinationService.getAny()).thenReturn(ImmutableList.of(jamesAliasService));
 
-//		PreemptiveBasicAuthScheme basicAuthScheme = new PreemptiveBasicAuthScheme();
-//		basicAuthScheme.setUserName("admin@open-paas.org");
-//		basicAuthScheme.setPassword("secret");
 		RestAssured.requestSpecification = new RequestSpecBuilder().setPort(MAPPED_JAMES_WEBADMIN_PORT)
-//        		.setAuth(basicAuthScheme)
 				.setContentType(ContentType.JSON).setAccept(ContentType.JSON)
 				.setConfig(newConfig().encoderConfig(encoderConfig().defaultContentCharset(StandardCharsets.UTF_8)))
+				.addHeader("Authorization", "Bearer " + jwtToken())
 				.setBasePath("/address/aliases").build();
 		RestAssured.enableLoggingOfRequestAndResponseIfValidationFails();
 
 		with().basePath("/domains").put(DOMAIN).then().statusCode(HttpStatus.SC_NO_CONTENT);
 	}
+	
+	private static String jwtToken() throws Exception {
+		Security.addProvider(new BouncyCastleProvider());
+		KeyFactory factory = KeyFactory.getInstance("RSA", "BC");
+
+		RSAPublicKey publicKey = getPublicKey(factory);
+		RSAPrivateKey privateKey = getPrivateKey(factory);
+
+		Algorithm algorithm = Algorithm.RSA256(publicKey, privateKey);
+		return JWT.create()
+			.withSubject("admin@james.org")
+			.withClaim("admin", true)
+			.withIssuedAt(Date.from(Instant.now()))
+			.sign(algorithm);
+	}
+
+	private static RSAPublicKey getPublicKey(KeyFactory keyFactory) throws Exception {
+		try (PEMReader pemReader = new PEMReader(new FileReader(ClassLoader.getSystemResource("conf/jwt_publickey").getFile()))) {
+			Object readObject = pemReader.readObject();
+			return (org.bouncycastle.jce.provider.JCERSAPublicKey)readObject;
+		}
+	}
+
+	private static RSAPrivateKey getPrivateKey(KeyFactory keyFactory) throws Exception {
+		try (PEMReader pemReader = new PEMReader(new FileReader(ClassLoader.getSystemResource("conf/private.pem").getFile()), () -> "james".toCharArray())) {
+	        Object readObject = pemReader.readObject();
+	        return (RSAPrivateKey)((java.security.KeyPair)readObject).getPrivate();
+		}
+	}
+
 
 	@AfterEach
 	void cleanAllAliases() {

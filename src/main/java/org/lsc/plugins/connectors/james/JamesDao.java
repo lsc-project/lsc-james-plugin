@@ -50,10 +50,10 @@ import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
+import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
-import org.glassfish.jersey.client.filter.HttpBasicAuthFilter;
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.lsc.configuration.TaskType;
 import org.lsc.plugins.connectors.james.beans.Alias;
@@ -68,10 +68,12 @@ public class JamesDao {
 	protected static final Logger LOGGER = LoggerFactory.getLogger(JamesDao.class);
 
 	private WebTarget aliasesClient;
+
+	private final String authorizationBearer;
 	
-	public JamesDao(String url, String username, String password, TaskType task) {
+	public JamesDao(String url, String token, TaskType task) {
+		authorizationBearer = "Bearer " + token;
 		aliasesClient = ClientBuilder.newClient()
-				.register(new HttpBasicAuthFilter(username, password))
 				.register(JacksonFeature.class)
 				.target(url)
 				.path(ALIASES_PATH);
@@ -81,7 +83,9 @@ public class JamesDao {
 	public List<Alias> getAliases(String email) {
 		WebTarget target = aliasesClient.path(email);
 		LOGGER.debug("GETting aliases: " + target.getUri().toString());
-		List<Alias> aliases = target.request().get(new GenericType<List<Alias>>(){});
+		List<Alias> aliases = target.request()
+				.header(HttpHeaders.AUTHORIZATION, authorizationBearer)
+				.get(new GenericType<List<Alias>>(){});
 		if (aliases.isEmpty()) {
 			throw new NotFoundException();
 		}
@@ -91,7 +95,9 @@ public class JamesDao {
 	public List<User> getUsersList() {
 		WebTarget target = aliasesClient.path("");
 		LOGGER.debug("GETting users with alias list: " + target.getUri().toString());
-		List<String> users = target.request().get(new GenericType<List<String>>(){});
+		List<String> users = target.request()
+				.header(HttpHeaders.AUTHORIZATION, authorizationBearer)
+				.get(new GenericType<List<String>>(){});
 		return users.stream()
 			.map(User::new)
 			.collect(Collectors.toList());
@@ -107,7 +113,9 @@ public class JamesDao {
 	private boolean createAlias(User user, Alias alias) {
 		WebTarget target = aliasesClient.path(user.email).path("sources").path(alias.source);
 		LOGGER.debug("PUTting alias: " + target.getUri().toString());
-		Response response = target.request().put(Entity.text(""));
+		Response response = target.request()
+				.header(HttpHeaders.AUTHORIZATION, authorizationBearer)
+				.put(Entity.text(""));
 		String rawResponseBody = response.readEntity(String.class);
 		response.close();
 		if (checkResponse(response)) {
@@ -133,7 +141,9 @@ public class JamesDao {
 	private boolean removeAlias(User user, Alias alias) {
 		WebTarget target = aliasesClient.path(user.email).path("sources").path(alias.source);
 		LOGGER.debug("DELETEting alias: " + target.getUri().toString());
-		Response response = target.request().delete();
+		Response response = target.request()
+				.header(HttpHeaders.AUTHORIZATION, authorizationBearer)
+				.delete();
 		String rawResponseBody = response.readEntity(String.class);
 		response.close();
 		if (checkResponse(response)) {
