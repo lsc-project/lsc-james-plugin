@@ -53,6 +53,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.io.FileReader;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.Security;
@@ -94,6 +95,8 @@ import io.restassured.builder.RequestSpecBuilder;
 import io.restassured.http.ContentType;
 
 public class JamesAliasDstServiceTest {
+	private static final URL PRIVATE_KEY = ClassLoader.getSystemResource("conf/private.pem");
+	private static final URL PUBLIC_KEY = ClassLoader.getSystemResource("conf/jwt_publickey");
 	private static final String DOMAIN = "james.org";
 	private static final int JAMES_WEBADMIN_PORT = 8000;
 	private static int MAPPED_JAMES_WEBADMIN_PORT;
@@ -107,9 +110,10 @@ public class JamesAliasDstServiceTest {
 	@BeforeAll
 	static void setup() throws Exception {
 		james = new GenericContainer<>("linagora/james-memory:openpaas-1.5.2");
+		String webadmin = ClassLoader.getSystemResource("conf/webadmin.properties").getFile();
 		james.withExposedPorts(JAMES_WEBADMIN_PORT)
-			.withFileSystemBind("./src/test/resources/conf/jwt_publickey", "/root/conf/jwt_publickey", BindMode.READ_ONLY)
-			.withFileSystemBind("./src/test/resources/conf/webadmin.properties", "/root/conf/webadmin.properties", BindMode.READ_ONLY)
+			.withFileSystemBind(PUBLIC_KEY.getFile(), "/root/conf/jwt_publickey", BindMode.READ_ONLY)
+			.withFileSystemBind(webadmin, "/root/conf/webadmin.properties", BindMode.READ_ONLY)
 			.start();
 
 		MAPPED_JAMES_WEBADMIN_PORT = james.getMappedPort(JAMES_WEBADMIN_PORT);
@@ -153,14 +157,14 @@ public class JamesAliasDstServiceTest {
 	}
 
 	private static RSAPublicKey getPublicKey(KeyFactory keyFactory) throws Exception {
-		try (PEMReader pemReader = new PEMReader(new FileReader(ClassLoader.getSystemResource("conf/jwt_publickey").getFile()))) {
+		try (PEMReader pemReader = new PEMReader(new FileReader(PUBLIC_KEY.getFile()))) {
 			Object readObject = pemReader.readObject();
 			return (org.bouncycastle.jce.provider.JCERSAPublicKey)readObject;
 		}
 	}
 
 	private static RSAPrivateKey getPrivateKey(KeyFactory keyFactory) throws Exception {
-		try (PEMReader pemReader = new PEMReader(new FileReader(ClassLoader.getSystemResource("conf/private.pem").getFile()), () -> "james".toCharArray())) {
+		try (PEMReader pemReader = new PEMReader(new FileReader(PRIVATE_KEY.getFile()), () -> "james".toCharArray())) {
 	        Object readObject = pemReader.readObject();
 	        return (RSAPrivateKey)((java.security.KeyPair)readObject).getPrivate();
 		}
