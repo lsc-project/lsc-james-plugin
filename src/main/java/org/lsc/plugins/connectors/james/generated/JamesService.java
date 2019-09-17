@@ -37,7 +37,7 @@ import org.lsc.configuration.ValuesType;
  * 
  */
 @XmlAccessorType(XmlAccessType.FIELD)
-@XmlType(name = "jamesService", propOrder = {
+@XmlType(name = "jamesService", namespace = "http://lsc-project.org/XSD/lsc-james0-plugin-1.0.xsd", propOrder = {
     "writableAttributes"
 })
 @XmlSeeAlso({

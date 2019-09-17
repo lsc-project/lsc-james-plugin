@@ -5,5 +5,5 @@
 // Generated on: 2019.09.10 at 05:05:31 PM CEST 
 //
 
-@javax.xml.bind.annotation.XmlSchema(namespace = "http://lsc-project.org/XSD/lsc-james-plugin-1.0.xsd", elementFormDefault = javax.xml.bind.annotation.XmlNsForm.QUALIFIED)
+@javax.xml.bind.annotation.XmlSchema(namespace = "http://lsc-project.org/XSD/lsc-core-1.0.xsd", elementFormDefault = javax.xml.bind.annotation.XmlNsForm.QUALIFIED)
 package org.lsc.plugins.connectors.james.generated;

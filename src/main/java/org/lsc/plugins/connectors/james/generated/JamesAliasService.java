@@ -22,7 +22,7 @@ import javax.xml.bind.annotation.XmlType;
  * <pre>
  * &lt;complexType>
  *   &lt;complexContent>
- *     &lt;extension base="{http://lsc-project.org/XSD/lsc-james-plugin-1.0.xsd}jamesService">
+ *     &lt;extension base="{http://lsc-project.org/XSD/lsc-james0-plugin-1.0.xsd}jamesService">
  *     &lt;/extension>
  *   &lt;/complexContent>
  * &lt;/complexType>
@@ -32,7 +32,7 @@ import javax.xml.bind.annotation.XmlType;
  */
 @XmlAccessorType(XmlAccessType.FIELD)
 @XmlType(name = "")
-@XmlRootElement(name = "jamesAliasService")
+@XmlRootElement(name = "jamesAliasService", namespace = "http://lsc-project.org/XSD/lsc-james0-plugin-1.0.xsd")
 public class JamesAliasService
     extends JamesService
 {
