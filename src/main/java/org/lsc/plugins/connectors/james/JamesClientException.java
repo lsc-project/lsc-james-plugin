@@ -6,8 +6,8 @@
  * flat files...
  *
  *                  ==LICENSE NOTICE==
- * 
- * Copyright (c) 2008 - 2019 LSC Project 
+ *
+ * Copyright (c) 2008 - 2019 LSC Project
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -21,7 +21,7 @@
  *     * Neither the name of the LSC Project nor the names of its
  * contributors may be used to endorse or promote products derived from
  * this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
  * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
@@ -37,28 +37,39 @@
  *                  ==LICENSE NOTICE==
  *
  *               (c) 2008 - 2019 LSC Project
- *         Raphael Ouazana <rouazana@linagora.com>
+ *         Tung Tran Van <vttran@linagora.com>
  ****************************************************************************
  */
-package org.lsc.plugins.connectors.james.beans;
 
-import org.lsc.LscDatasets;
+package org.lsc.plugins.connectors.james;
 
-public class User {
+import java.net.URI;
 
-	public User(String email) {
-		this.email = email;
-	}
+import javax.ws.rs.core.Response;
 
-	public final String email;
+public class JamesClientException extends RuntimeException {
+    private final URI uri;
+    private final String method;
+    private final Response response;
 
-	public LscDatasets toDatasets() {
-		LscDatasets datasets = new LscDatasets();
-		datasets.put("email", email);
-		return datasets;
-	}
+    public JamesClientException(URI uri, String method, Response response) {
+        this.uri = uri;
+        this.method = method;
+        this.response = response;
+    }
 
-    public static User fromDto(UserDto dto) {
-        return new User(dto.getUsername());
+    public JamesClientException(URI uri, String method, Response response, String message) {
+        super(message);
+        this.uri = uri;
+        this.method = method;
+        this.response = response;
+    }
+
+    public URI getUri() {
+        return uri;
+    }
+
+    public Response getResponse() {
+        return response;
     }
 }

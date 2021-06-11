@@ -100,7 +100,7 @@ public class JamesAliasDstService implements IWritableService {
         	service = (JamesService) task.getPluginDestinationService().getAny().get(0);
 			beanClass = (Class<IBean>) Class.forName(task.getBean());
 			connection = (PluginConnectionType) service.getConnection().getReference();
-			
+
 			jamesDao = new JamesDao(connection.getUrl(), connection.getPassword(), task);
 			
 		} catch (ClassNotFoundException e) {
@@ -164,7 +164,7 @@ public class JamesAliasDstService implements IWritableService {
 	@Override
 	public Map<String, LscDatasets> getListPivots() throws LscServiceException {
 		try {
-			List<User> userList = jamesDao.getUsersList();
+			List<User> userList = jamesDao.getUsersListViaAlias();
 
 			Map<String, LscDatasets> listPivots = new HashMap<String, LscDatasets>();
 			for (User user: userList) {
