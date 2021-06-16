@@ -42,23 +42,37 @@
  */
 package org.lsc.plugins.connectors.james.beans;
 
-import org.lsc.LscDatasets;
+import org.codehaus.jackson.annotate.JsonIgnoreProperties;
+import org.codehaus.jackson.annotate.JsonProperty;
 
-public class User {
+import com.google.common.base.Objects;
 
-	public User(String email) {
-		this.email = email;
-	}
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class UserDto {
 
-	public final String email;
+    @JsonProperty("username")
+    private String username;
 
-	public LscDatasets toDatasets() {
-		LscDatasets datasets = new LscDatasets();
-		datasets.put("email", email);
-		return datasets;
-	}
+    public UserDto() {
+    }
 
-    public static User fromDto(UserDto dto) {
-        return new User(dto.getUsername());
+    public UserDto(String username) {
+        this.username = username;
+    }
+
+    public final boolean equals(Object other) {
+        if (!(other instanceof UserDto)) {
+            return false;
+        }
+        UserDto alias = (UserDto) other;
+        return Objects.equal(username, alias.username);
+    }
+
+    public final int hashCode() {
+        return Objects.hashCode(username);
+    }
+
+    public String getUsername() {
+        return username;
     }
 }

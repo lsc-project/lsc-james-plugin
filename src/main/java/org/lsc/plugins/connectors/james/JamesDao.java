@@ -45,6 +45,7 @@ package org.lsc.plugins.connectors.james;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import javax.ws.rs.HttpMethod;
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
@@ -58,16 +59,21 @@ import org.glassfish.jersey.jackson.JacksonFeature;
 import org.lsc.configuration.TaskType;
 import org.lsc.plugins.connectors.james.beans.Alias;
 import org.lsc.plugins.connectors.james.beans.User;
+import org.lsc.plugins.connectors.james.beans.UserDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class JamesDao {
 	
 	public static final String ALIASES_PATH = "/address/aliases"; 
-	
+	public static final String USERS_PATH = "/users";
+	public static final int HTTP_STATUS_CODE_USER_EXITS = Status.OK.getStatusCode();
+	public static final int HTTP_STATUS_CODE_USER_DOES_NOT_EXITS = Status.NOT_FOUND.getStatusCode();
+
 	protected static final Logger LOGGER = LoggerFactory.getLogger(JamesDao.class);
 
-	private WebTarget aliasesClient;
+	private final WebTarget aliasesClient;
+	private final WebTarget usersClient;
 
 	private final String authorizationBearer;
 	
@@ -78,6 +84,10 @@ public class JamesDao {
 				.target(url)
 				.path(ALIASES_PATH);
 
+		usersClient = ClientBuilder.newClient()
+			.register(JacksonFeature.class)
+			.target(url)
+			.path(USERS_PATH);
 	}
 
 	public List<Alias> getAliases(String email) {
@@ -92,7 +102,7 @@ public class JamesDao {
 		return aliases;
 	}
 
-	public List<User> getUsersList() {
+	public List<User> getUsersListViaAlias() {
 		WebTarget target = aliasesClient.path("");
 		LOGGER.debug("GETting users with alias list: " + target.getUri().toString());
 		List<String> users = target.request()
@@ -187,5 +197,80 @@ public class JamesDao {
 				.filter(alias -> !sourceAliases.contains(alias))
 				.collect(Collectors.toList());
 	}
-	
+
+	public boolean addUser(User user, String password) {
+		Response response = usersClient
+			.path(user.email)
+			.request()
+			.header(HttpHeaders.AUTHORIZATION, authorizationBearer)
+			.put(Entity.text("{\"password\":\"" + password + "\"}"));
+
+		String rawResponseBody = response.readEntity(String.class);
+		response.close();
+		if (checkResponse(response)) {
+			LOGGER.debug("Create user {} is successful", user.email);
+			return true;
+		}
+		LOGGER.error(String.format("Error %d (%s - %s) while creating user: %s",
+			response.getStatus(),
+			response.getStatusInfo(),
+			rawResponseBody,
+			usersClient.getUri().toString()));
+		return false;
+	}
+
+	public boolean removeUser(User user) {
+		Response response = usersClient
+			.path(user.email)
+			.request()
+			.header(HttpHeaders.AUTHORIZATION, authorizationBearer)
+			.delete();
+
+		String rawResponseBody = response.readEntity(String.class);
+		response.close();
+		if (checkResponse(response)) {
+			LOGGER.debug("Remove user {} is successful", user.email);
+			return true;
+		}
+		LOGGER.error(String.format("Error %d (%s - %s) while removing user: %s",
+			response.getStatus(),
+			response.getStatusInfo(),
+			rawResponseBody,
+			usersClient.getUri().toString()));
+		return false;
+	}
+
+	public List<User> getUserList() {
+		List<UserDto> users = usersClient
+			.path("")
+			.request()
+			.header(HttpHeaders.AUTHORIZATION, authorizationBearer)
+			.get(new GenericType<List<UserDto>>() {
+			});
+		return users.stream()
+			.map(User::fromDto)
+			.collect(Collectors.toList());
+	}
+
+	public boolean userExists(String user) {
+		Response response = usersClient
+			.path(user)
+			.request()
+			.header(HttpHeaders.AUTHORIZATION, authorizationBearer)
+			.head();
+		String rawResponseBody = response.readEntity(String.class);
+		response.close();
+		if (response.getStatus() == HTTP_STATUS_CODE_USER_EXITS) {
+			return true;
+		} else if (response.getStatus() == HTTP_STATUS_CODE_USER_DOES_NOT_EXITS) {
+			return false;
+		}
+		LOGGER.error(String.format("Error %d (%s - %s) while check exits user: %s",
+			response.getStatus(),
+			response.getStatusInfo(),
+			rawResponseBody,
+			user));
+
+		throw new JamesClientException(usersClient.getUri(), HttpMethod.HEAD, response);
+	}
 }

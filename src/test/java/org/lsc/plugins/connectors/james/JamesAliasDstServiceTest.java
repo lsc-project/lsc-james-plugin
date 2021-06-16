@@ -109,7 +109,7 @@ public class JamesAliasDstServiceTest {
 
 	@BeforeAll
 	static void setup() throws Exception {
-		james = new GenericContainer<>("linagora/james-memory:openpaas-1.5.2");
+		james = new GenericContainer<>("linagora/james-memory:tmail-0.2.0");
 		String webadmin = ClassLoader.getSystemResource("conf/webadmin.properties").getFile();
 		james.withExposedPorts(JAMES_WEBADMIN_PORT)
 			.withFileSystemBind(PUBLIC_KEY.getFile(), "/root/conf/jwt_publickey", BindMode.READ_ONLY)
