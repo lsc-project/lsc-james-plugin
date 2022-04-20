@@ -52,4 +52,12 @@ public class ObjectFactory {
         return new JamesUsersService();
     }
 
+    /**
+     * Create an instance of {@link JamesUsersService }
+     *
+     */
+    public JamesContactService createJamesContactService() {
+        return new JamesContactService();
+    }
+
 }

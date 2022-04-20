@@ -58,6 +58,7 @@ import javax.ws.rs.core.Response.Status;
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.lsc.configuration.TaskType;
 import org.lsc.plugins.connectors.james.beans.Alias;
+import org.lsc.plugins.connectors.james.beans.Contact;
 import org.lsc.plugins.connectors.james.beans.User;
 import org.lsc.plugins.connectors.james.beans.UserDto;
 import org.slf4j.Logger;
@@ -67,6 +68,7 @@ public class JamesDao {
 	
 	public static final String ALIASES_PATH = "/address/aliases"; 
 	public static final String USERS_PATH = "/users";
+	public static final String DOMAIN_CONTACT_PATH = "/domains/%s/contacts/%";
 	public static final int HTTP_STATUS_CODE_USER_EXITS = Status.OK.getStatusCode();
 	public static final int HTTP_STATUS_CODE_USER_DOES_NOT_EXITS = Status.NOT_FOUND.getStatusCode();
 
@@ -74,7 +76,7 @@ public class JamesDao {
 
 	private final WebTarget aliasesClient;
 	private final WebTarget usersClient;
-
+	private final WebTarget contactClient;
 	private final String authorizationBearer;
 	
 	public JamesDao(String url, String token, TaskType task) {
@@ -88,6 +90,10 @@ public class JamesDao {
 			.register(JacksonFeature.class)
 			.target(url)
 			.path(USERS_PATH);
+
+		contactClient = ClientBuilder.newClient()
+			.register(JacksonFeature.class)
+			.target(url);
 	}
 
 	public List<Alias> getAliases(String email) {
@@ -272,5 +278,89 @@ public class JamesDao {
 			user));
 
 		throw new JamesClientException(usersClient.getUri(), HttpMethod.HEAD, response);
+	}
+
+	public boolean addDomainContact(Contact contact) {
+		Response response = contactClient
+			.path(String.format("/domains/%s/contacts", contact.getDomain()))
+			.request()
+			.header(HttpHeaders.AUTHORIZATION, authorizationBearer)
+			.post(Entity.text(String.format("{\n" +
+				"\t\"emailAddress\": \"%s\",\n" +
+				"\t\"firstname\": \"%s\",\n" +
+				"\t\"surname\": \"%s\"\n" +
+				"}", contact.getEmail(), contact.getFirstname(), contact.getSurname())));
+
+		String rawResponseBody = response.readEntity(String.class);
+		response.close();
+		if (checkResponse(response)) {
+			LOGGER.debug("Create domain contact {} is successful", contact.getEmail());
+			return true;
+		} else {
+			LOGGER.error(String.format("Error %d (%s - %s) while creating domain contact: %s",
+				response.getStatus(),
+				response.getStatusInfo(),
+				rawResponseBody,
+				contactClient.getUri().toString()));
+			return false;
+		}
+	}
+
+	public List<User> getUsersListViaDomainContacts() {
+		WebTarget target = contactClient.path(String.format("/domains/contacts"));
+		LOGGER.debug("GETting users with domain contacts list: " + target.getUri().toString());
+		List<String> users = target.request()
+			.header(HttpHeaders.AUTHORIZATION, authorizationBearer)
+			.get(new GenericType<List<String>>(){});
+		return users.stream()
+			.map(User::new)
+			.collect(Collectors.toList());
+	}
+
+	public boolean updateDomainContact(Contact contact) {
+		Response response = contactClient
+			.path(String.format(DOMAIN_CONTACT_PATH, contact.getDomain(), contact.getUsernameFromEmail()))
+			.request()
+			.header(HttpHeaders.AUTHORIZATION, authorizationBearer)
+			.put(Entity.text(String.format("{\n" +
+				"\t\"firstname\": \"%s\",\n" +
+				"\t\"surname\": \"%s\"\n" +
+				"}", contact.getFirstname(), contact.getSurname())));
+
+		String rawResponseBody = response.readEntity(String.class);
+		response.close();
+		if (checkResponse(response)) {
+			LOGGER.debug("Create domain contact {} is successful", contact.getEmail());
+			return true;
+		} else {
+			LOGGER.error(String.format("Error %d (%s - %s) while creating domain contact: %s",
+				response.getStatus(),
+				response.getStatusInfo(),
+				rawResponseBody,
+				contactClient.getUri().toString()));
+			return false;
+		}
+	}
+
+	public boolean removeDomainContact(String email) {
+		Response response = contactClient
+			.path(String.format(DOMAIN_CONTACT_PATH, Contact.extractDomainFromEmail(email), Contact.extractUsernameFromEmail(email)))
+			.request()
+			.header(HttpHeaders.AUTHORIZATION, authorizationBearer)
+			.delete();
+
+		String rawResponseBody = response.readEntity(String.class);
+		response.close();
+		if (checkResponse(response)) {
+			LOGGER.debug("Remove domain contact {} is successful", email);
+			return true;
+		} else {
+			LOGGER.error(String.format("Error %d (%s - %s) while removing user: %s",
+				response.getStatus(),
+				response.getStatusInfo(),
+				rawResponseBody,
+				usersClient.getUri().toString()));
+			return false;
+		}
 	}
 }
