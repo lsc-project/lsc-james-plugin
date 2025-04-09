@@ -44,18 +44,21 @@ package org.lsc.plugins.connectors.james;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.Collection;
+import java.util.ArrayList;
 import java.util.Map;
 
-import javax.ws.rs.NotFoundException;
-import javax.ws.rs.ProcessingException;
-import javax.ws.rs.WebApplicationException;
+import jakarta.ws.rs.NotFoundException;
+import jakarta.ws.rs.ProcessingException;
+import jakarta.ws.rs.WebApplicationException;
 
-import org.apache.commons.lang.RandomStringUtils;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.lsc.LscDatasets;
 import org.lsc.LscModifications;
 import org.lsc.beans.IBean;
 import org.lsc.configuration.PluginConnectionType;
 import org.lsc.configuration.TaskType;
+import org.lsc.configuration.ConnectionType;
 import org.lsc.exception.LscServiceCommunicationException;
 import org.lsc.exception.LscServiceConfigurationException;
 import org.lsc.exception.LscServiceException;
@@ -184,4 +187,10 @@ public class JamesUserDstService implements IWritableService {
             throw new LscServiceException(e);
         }
     }
+
+    public Collection<Class<? extends ConnectionType>> getSupportedConnectionType() {
+        Collection<Class<? extends ConnectionType>> list = new ArrayList<Class<? extends ConnectionType>>();
+        return list;
+    }
+
 }

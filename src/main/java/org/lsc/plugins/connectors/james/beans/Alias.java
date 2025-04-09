@@ -42,7 +42,7 @@
  */
 package org.lsc.plugins.connectors.james.beans;
 
-import org.codehaus.jackson.annotate.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.lsc.LscDatasets;
 
 import com.google.common.base.Objects;

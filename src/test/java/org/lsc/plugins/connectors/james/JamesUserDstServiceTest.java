@@ -51,11 +51,15 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.lang.String;
 import java.io.FileReader;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.Security;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.KeyPair;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.time.Instant;
@@ -63,10 +67,19 @@ import java.util.Date;
 import java.util.Map;
 import java.util.stream.Stream;
 
-import org.apache.commons.lang.RandomStringUtils;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.http.HttpStatus;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.bouncycastle.openssl.PEMReader;
+import org.bouncycastle.asn1.ASN1Encodable;
+import org.bouncycastle.asn1.ASN1Primitive;
+import org.bouncycastle.asn1.ASN1TaggedObject;
+import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
+import org.bouncycastle.openssl.PEMParser;
+import org.bouncycastle.openssl.PEMDecryptorProvider;
+import org.bouncycastle.openssl.PEMEncryptedKeyPair;
+import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
+import org.bouncycastle.openssl.jcajce.JcePEMDecryptorProviderBuilder;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -159,16 +172,23 @@ public class JamesUserDstServiceTest {
     }
 
     private static RSAPublicKey getPublicKey(KeyFactory keyFactory) throws Exception {
-        try (PEMReader pemReader = new PEMReader(new FileReader(PUBLIC_KEY.getFile()))) {
-            Object readObject = pemReader.readObject();
-            return (org.bouncycastle.jce.provider.JCERSAPublicKey) readObject;
+        try (PEMParser pemParser = new PEMParser(new FileReader(PUBLIC_KEY.getFile()))) {
+            JcaPEMKeyConverter jcaPEMKeyConverter = new JcaPEMKeyConverter();
+            SubjectPublicKeyInfo subjectPublicKeyInfo = (SubjectPublicKeyInfo)pemParser.readObject();
+            PublicKey publicKey = jcaPEMKeyConverter.getPublicKey(subjectPublicKeyInfo);
+            return (RSAPublicKey) publicKey;
         }
     }
 
     private static RSAPrivateKey getPrivateKey(KeyFactory keyFactory) throws Exception {
-        try (PEMReader pemReader = new PEMReader(new FileReader(PRIVATE_KEY.getFile()), () -> "james".toCharArray())) {
-            Object readObject = pemReader.readObject();
-            return (RSAPrivateKey) ((java.security.KeyPair) readObject).getPrivate();
+        try (PEMParser pemParser = new PEMParser(new FileReader(PRIVATE_KEY.getFile()))) {
+            Object readObject = pemParser.readObject();
+            PEMDecryptorProvider decProv = new JcePEMDecryptorProviderBuilder().build(new String("james").toCharArray());
+            JcaPEMKeyConverter converter = new JcaPEMKeyConverter().setProvider("BC");
+            KeyPair kp = converter.getKeyPair(((PEMEncryptedKeyPair) readObject).decryptKeyPair(decProv));
+            PrivateKey pkey = kp.getPrivate();
+
+            return (RSAPrivateKey) pkey;
         }
     }
 
