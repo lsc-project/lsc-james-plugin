@@ -45,7 +45,7 @@ package org.lsc.plugins.connectors.james;
 
 import java.net.URI;
 
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response;
 
 public class JamesClientException extends RuntimeException {
     private final URI uri;
