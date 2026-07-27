@@ -55,6 +55,7 @@ import jakarta.ws.rs.WebApplicationException;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.lsc.LscDatasets;
 import org.lsc.LscModifications;
+import org.lsc.Task;
 import org.lsc.beans.IBean;
 import org.lsc.configuration.PluginConnectionType;
 import org.lsc.configuration.TaskType;
@@ -129,7 +130,7 @@ public class JamesUserDstService implements IWritableService {
     }
 
     @Override
-    public IBean getBean(String pivotName, LscDatasets pivotAttributes, boolean fromSameService) throws LscServiceException {
+    public IBean getBean(Task task, String pivotName, LscDatasets pivotAttributes, boolean fromSameService) throws LscServiceException {
         LOGGER.debug(String.format("Call to getBean(%s, %s, %b)", pivotName, pivotAttributes, fromSameService));
         if (pivotAttributes.getAttributesNames().size() < 1) {
             return null;
@@ -168,7 +169,7 @@ public class JamesUserDstService implements IWritableService {
     }
 
     @Override
-    public Map<String, LscDatasets> getListPivots() throws LscServiceException {
+    public Map<String, LscDatasets> getListPivots(Task task) throws LscServiceException {
         try {
             List<User> userList = jamesDao.getUserList();
             LOGGER.debug("Get ListPivots. userList size = {}", userList.size());

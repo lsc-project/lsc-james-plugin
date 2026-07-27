@@ -90,6 +90,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.lsc.LscDatasets;
 import org.lsc.LscModificationType;
 import org.lsc.LscModifications;
+import org.lsc.Task;
 import org.lsc.configuration.PluginConnectionType;
 import org.lsc.configuration.PluginDestinationServiceType;
 import org.lsc.configuration.ServiceType.Connection;
@@ -116,7 +117,8 @@ public class JamesUserDstServiceTest {
     private static final boolean FROM_SAME_SERVICE = true;
 
     private static GenericContainer<?> james;
-    private static TaskType task;
+    private static TaskType taskType;
+    private static Task task = null;
     private static int MAPPED_JAMES_WEBADMIN_PORT;
     private static JamesUserDstService testee;
 
@@ -135,16 +137,16 @@ public class JamesUserDstServiceTest {
         PluginDestinationServiceType pluginDestinationService = mock(PluginDestinationServiceType.class);
         PluginConnectionType jamesConnection = mock(PluginConnectionType.class);
         Connection connection = mock(Connection.class);
-        task = mock(TaskType.class);
+        taskType = mock(TaskType.class);
 
         when(jamesConnection.getUrl()).thenReturn("http://localhost:" + MAPPED_JAMES_WEBADMIN_PORT);
         when(jamesConnection.getPassword()).thenReturn(jwtToken());
         when(connection.getReference()).thenReturn(jamesConnection);
         when(jamesUsersService.getConnection()).thenReturn(connection);
-        when(task.getBean()).thenReturn("org.lsc.beans.SimpleBean");
-        when(task.getPluginDestinationService()).thenReturn(pluginDestinationService);
+        when(taskType.getBean()).thenReturn("org.lsc.beans.SimpleBean");
+        when(taskType.getPluginDestinationService()).thenReturn(pluginDestinationService);
         when(pluginDestinationService.getAny()).thenReturn(ImmutableList.of(jamesUsersService));
-        testee = new JamesUserDstService(task);
+        testee = new JamesUserDstService(taskType);
 
         RestAssured.requestSpecification = new RequestSpecBuilder().setPort(MAPPED_JAMES_WEBADMIN_PORT)
             .setContentType(ContentType.JSON).setAccept(ContentType.JSON)
@@ -199,7 +201,7 @@ public class JamesUserDstServiceTest {
 
     @AfterEach
     void removeAllUser() throws Exception {
-        JamesDao jamesDao = new JamesDao("http://localhost:" + MAPPED_JAMES_WEBADMIN_PORT, jwtToken(), task);
+        JamesDao jamesDao = new JamesDao("http://localhost:" + MAPPED_JAMES_WEBADMIN_PORT, jwtToken(), taskType);
         jamesDao.getUserList()
             .forEach(jamesDao::removeUser);
     }
@@ -215,7 +217,7 @@ public class JamesUserDstServiceTest {
 
     @Test
     void getListPivotsShouldReturnEmptyWhenNoUser() throws Exception {
-        Map<String, LscDatasets> listPivots = testee.getListPivots();
+        Map<String, LscDatasets> listPivots = testee.getListPivots(task);
 
         assertThat(listPivots).isEmpty();
     }
@@ -224,7 +226,7 @@ public class JamesUserDstServiceTest {
     void getListPivotsShouldReturnOneWhenOneUser() throws Exception {
         createUsers(USER);
 
-        Map<String, LscDatasets> listPivots = testee.getListPivots();
+        Map<String, LscDatasets> listPivots = testee.getListPivots(task);
 
         assertSoftly(softly -> {
             softly.assertThat(listPivots).containsOnlyKeys(USER);
@@ -239,7 +241,7 @@ public class JamesUserDstServiceTest {
         createUsers(user1);
         createUsers(user2);
 
-        Map<String, LscDatasets> listPivots = testee.getListPivots();
+        Map<String, LscDatasets> listPivots = testee.getListPivots(task);
 
         assertSoftly(softly -> {
             softly.assertThat(listPivots).hasSize(2);
@@ -370,7 +372,7 @@ public class JamesUserDstServiceTest {
     @Test
     void getBeanShouldReturnNullWhenUserDoesNotExist() throws Exception {
         LscDatasets datasets = new LscDatasets(ImmutableMap.of("email", USER));
-        assertThat(testee.getBean("email", datasets, FROM_SAME_SERVICE)).isNull();
+        assertThat(testee.getBean(task, "email", datasets, FROM_SAME_SERVICE)).isNull();
     }
 
     @Test
@@ -378,7 +380,7 @@ public class JamesUserDstServiceTest {
         createUsers(USER);
 
         LscDatasets datasets = new LscDatasets(ImmutableMap.of("email", USER));
-        assertThat(testee.getBean("email", datasets, FROM_SAME_SERVICE)).isNotNull();
+        assertThat(testee.getBean(task, "email", datasets, FROM_SAME_SERVICE)).isNotNull();
     }
 
     static Stream<Arguments> nonSupportedOperations() {

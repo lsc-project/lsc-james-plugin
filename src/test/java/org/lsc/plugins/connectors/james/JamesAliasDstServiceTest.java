@@ -85,6 +85,7 @@ import org.lsc.LscDatasetModification.LscDatasetModificationType;
 import org.lsc.LscDatasets;
 import org.lsc.LscModificationType;
 import org.lsc.LscModifications;
+import org.lsc.Task;
 import org.lsc.beans.IBean;
 import org.lsc.configuration.PluginConnectionType;
 import org.lsc.configuration.PluginDestinationServiceType;
@@ -111,7 +112,8 @@ public class JamesAliasDstServiceTest {
 	private static int MAPPED_JAMES_WEBADMIN_PORT;
 	private static final boolean FROM_SAME_SERVICE = true;
 
-	private static TaskType task;
+	private static TaskType taskType;
+	private static Task task = null;
 	private static GenericContainer<?> james;
 
 	private JamesAliasDstService testee;
@@ -130,14 +132,14 @@ public class JamesAliasDstServiceTest {
 		PluginDestinationServiceType pluginDestinationService = mock(PluginDestinationServiceType.class);
 		PluginConnectionType jamesConnection = mock(PluginConnectionType.class);
 		Connection connection = mock(Connection.class);
-		task = mock(TaskType.class);
+		taskType = mock(TaskType.class);
 
 		when(jamesConnection.getUrl()).thenReturn("http://localhost:" + MAPPED_JAMES_WEBADMIN_PORT);
 		when(jamesConnection.getPassword()).thenReturn(jwtToken());
 		when(connection.getReference()).thenReturn(jamesConnection);
 		when(jamesAliasService.getConnection()).thenReturn(connection);
-		when(task.getBean()).thenReturn("org.lsc.beans.SimpleBean");
-		when(task.getPluginDestinationService()).thenReturn(pluginDestinationService);
+		when(taskType.getBean()).thenReturn("org.lsc.beans.SimpleBean");
+		when(taskType.getPluginDestinationService()).thenReturn(pluginDestinationService);
 		when(pluginDestinationService.getAny()).thenReturn(ImmutableList.of(jamesAliasService));
 
 		RestAssured.requestSpecification = new RequestSpecBuilder().setPort(MAPPED_JAMES_WEBADMIN_PORT)
@@ -214,9 +216,9 @@ public class JamesAliasDstServiceTest {
 
 	@Test
 	public void getListPivotsShouldReturnEmptyWhenNoAlias() throws Exception {
-		testee = new JamesAliasDstService(task);
+		testee = new JamesAliasDstService(taskType);
 
-		Map<String, LscDatasets> listPivots = testee.getListPivots();
+		Map<String, LscDatasets> listPivots = testee.getListPivots(task);
 
 		assertThat(listPivots).isEmpty();
 	}
@@ -233,9 +235,9 @@ public class JamesAliasDstServiceTest {
 		String alias = "alias-to-user@james.org";
 		createAlias(user, alias);
 
-		testee = new JamesAliasDstService(task);
+		testee = new JamesAliasDstService(taskType);
 
-		Map<String, LscDatasets> listPivots = testee.getListPivots();
+		Map<String, LscDatasets> listPivots = testee.getListPivots(task);
 
 		assertThat(listPivots).containsOnlyKeys(user);
 		assertThat(listPivots.get(user).getStringValueAttribute("email")).isEqualTo(user);
@@ -251,9 +253,9 @@ public class JamesAliasDstServiceTest {
 		String aliasUser2 = "alias-to-user2@james.org";
 		createAlias(user2, aliasUser2);
 
-		testee = new JamesAliasDstService(task);
+		testee = new JamesAliasDstService(taskType);
 
-		Map<String, LscDatasets> listPivots = testee.getListPivots();
+		Map<String, LscDatasets> listPivots = testee.getListPivots(task);
 
 		assertThat(listPivots).containsOnlyKeys(user, user2);
 		assertThat(listPivots.get(user).getStringValueAttribute("email")).isEqualTo(user);
@@ -262,42 +264,42 @@ public class JamesAliasDstServiceTest {
 
 	@Test
 	public void getBeanShouldReturnNullWhenEmptyDataset() throws Exception {
-		testee = new JamesAliasDstService(task);
+		testee = new JamesAliasDstService(taskType);
 
-		assertThat(testee.getBean("email", new LscDatasets(), FROM_SAME_SERVICE)).isNull();
+		assertThat(testee.getBean(task, "email", new LscDatasets(), FROM_SAME_SERVICE)).isNull();
 	}
 
 	@Test
 	public void getBeanShouldReturnNullWhenNoMatchingId() throws Exception {
-		testee = new JamesAliasDstService(task);
+		testee = new JamesAliasDstService(taskType);
 
 		LscDatasets nonExistingIdDataset = new LscDatasets(ImmutableMap.of("email", "nonExistingEmail@james.org"));
-		assertThat(testee.getBean("email", nonExistingIdDataset, FROM_SAME_SERVICE)).isNull();
+		assertThat(testee.getBean(task, "email", nonExistingIdDataset, FROM_SAME_SERVICE)).isNull();
 	}
 
 	@Test
 	public void getBeanShouldReturnUserWhenUserWithAlias() throws Exception {
-		testee = new JamesAliasDstService(task);
+		testee = new JamesAliasDstService(taskType);
 		String user = "user@james.org";
 		String alias = "alias-to-user@james.org";
 
 		createAlias(user, alias);
 
 		LscDatasets nonExistingIdDataset = new LscDatasets(ImmutableMap.of("email", user));
-		IBean bean = testee.getBean("email", nonExistingIdDataset, FROM_SAME_SERVICE);
+		IBean bean = testee.getBean(task, "email", nonExistingIdDataset, FROM_SAME_SERVICE);
 		assertThat(bean.getMainIdentifier()).isEqualTo(user);
 	}
 
 	@Test
 	public void getBeanShouldReturnAliasesWhenUserWithAlias() throws Exception {
-		testee = new JamesAliasDstService(task);
+		testee = new JamesAliasDstService(taskType);
 		String user = "user@james.org";
 		String alias = "alias-to-user@james.org";
 
 		createAlias(user, alias);
 
 		LscDatasets nonExistingIdDataset = new LscDatasets(ImmutableMap.of("email", user));
-		IBean bean = testee.getBean("email", nonExistingIdDataset, FROM_SAME_SERVICE);
+		IBean bean = testee.getBean(task, "email", nonExistingIdDataset, FROM_SAME_SERVICE);
 
 		assertThat(bean.getDatasetFirstValueById("email")).isEqualTo(user);
 		assertThat(bean.getDatasetById("sources")).containsOnly(alias);
@@ -305,7 +307,7 @@ public class JamesAliasDstServiceTest {
 
 	@Test
 	public void getBeanShouldReturnAliasesWhenUserWithTwoAlias() throws Exception {
-		testee = new JamesAliasDstService(task);
+		testee = new JamesAliasDstService(taskType);
 		String user = "user@james.org";
 		String alias = "alias-to-user@james.org";
 		String alias2 = "alias2-to-user@james.org";
@@ -314,7 +316,7 @@ public class JamesAliasDstServiceTest {
 		createAlias(user, alias2);
 
 		LscDatasets nonExistingIdDataset = new LscDatasets(ImmutableMap.of("email", user));
-		IBean bean = testee.getBean("email", nonExistingIdDataset, FROM_SAME_SERVICE);
+		IBean bean = testee.getBean(task, "email", nonExistingIdDataset, FROM_SAME_SERVICE);
 
 		assertThat(bean.getDatasetFirstValueById("email")).isEqualTo(user);
 		assertThat(bean.getDatasetById("sources")).containsOnly(alias, alias2);
@@ -322,7 +324,7 @@ public class JamesAliasDstServiceTest {
 
 	@Test
 	public void createShouldFailWhenAddressIsMissing() throws Exception {
-		testee = new JamesAliasDstService(task);
+		testee = new JamesAliasDstService(taskType);
 
 		LscModifications modifications = new LscModifications(LscModificationType.CREATE_OBJECT);
 		String alias = "alias-to-user@james.org";
@@ -339,7 +341,7 @@ public class JamesAliasDstServiceTest {
 	public void createShouldSucceedWhenNoAlias() throws Exception {
 		String email = "user@james.org";
 
-		testee = new JamesAliasDstService(task);
+		testee = new JamesAliasDstService(taskType);
 
 		LscModifications modifications = new LscModifications(LscModificationType.CREATE_OBJECT);
 		modifications.setMainIdentifer(email);
@@ -359,7 +361,7 @@ public class JamesAliasDstServiceTest {
 	public void createShouldSucceedWhenEmptyAliasList() throws Exception {
 		String email = "user@james.org";
 
-		testee = new JamesAliasDstService(task);
+		testee = new JamesAliasDstService(taskType);
 
 		LscModifications modifications = new LscModifications(LscModificationType.CREATE_OBJECT);
 		modifications.setMainIdentifer(email);
@@ -382,7 +384,7 @@ public class JamesAliasDstServiceTest {
 		String email = "user@james.org";
 		String alias = "alias-to-user@james.org";
 
-		testee = new JamesAliasDstService(task);
+		testee = new JamesAliasDstService(taskType);
 
 		LscModifications modifications = new LscModifications(LscModificationType.CREATE_OBJECT);
 		modifications.setMainIdentifer(email);
@@ -408,7 +410,7 @@ public class JamesAliasDstServiceTest {
 		String email = "user@james.org";
 		String alias1 = "alias1-to-user@james.org";
 		String alias2 = "alias2-to-user@james.org";
-		testee = new JamesAliasDstService(task);
+		testee = new JamesAliasDstService(taskType);
 
 		LscModifications modifications = new LscModifications(LscModificationType.CREATE_OBJECT);
 		modifications.setMainIdentifer(email);
@@ -436,7 +438,7 @@ public class JamesAliasDstServiceTest {
 		
 		createAlias(email, alias);
 		
-		testee = new JamesAliasDstService(task);
+		testee = new JamesAliasDstService(taskType);
 
 		LscModifications modifications = new LscModifications(LscModificationType.UPDATE_OBJECT);
 		modifications.setMainIdentifer(email);
@@ -462,7 +464,7 @@ public class JamesAliasDstServiceTest {
 		
 		createAlias(email, alias);
 		
-		testee = new JamesAliasDstService(task);
+		testee = new JamesAliasDstService(taskType);
 
 		LscModifications modifications = new LscModifications(LscModificationType.UPDATE_OBJECT);
 		modifications.setMainIdentifer(email);
@@ -484,7 +486,7 @@ public class JamesAliasDstServiceTest {
 		String email = "user@james.org";
 		String alias = "alias-to-user@james.org";
 		
-		testee = new JamesAliasDstService(task);
+		testee = new JamesAliasDstService(taskType);
 
 		LscModifications modifications = new LscModifications(LscModificationType.UPDATE_OBJECT);
 		modifications.setMainIdentifer(email);
@@ -510,7 +512,7 @@ public class JamesAliasDstServiceTest {
 		String aliasToAdd = "alias-to-user_bis@james.org";
 		createAlias(email, alias);
 		
-		testee = new JamesAliasDstService(task);
+		testee = new JamesAliasDstService(taskType);
 
 		LscModifications modifications = new LscModifications(LscModificationType.UPDATE_OBJECT);
 		modifications.setMainIdentifer(email);
@@ -541,7 +543,7 @@ public class JamesAliasDstServiceTest {
 		createAlias(email, alias2);
 		createAlias(email, alias3);
 		
-		testee = new JamesAliasDstService(task);
+		testee = new JamesAliasDstService(taskType);
 
 		LscModifications modifications = new LscModifications(LscModificationType.UPDATE_OBJECT);
 		modifications.setMainIdentifer(email);
@@ -570,7 +572,7 @@ public class JamesAliasDstServiceTest {
 		createAlias(email, alias1);
 		createAlias(email, alias2);
 		
-		testee = new JamesAliasDstService(task);
+		testee = new JamesAliasDstService(taskType);
 
 		LscModifications modifications = new LscModifications(LscModificationType.DELETE_OBJECT);
 		modifications.setMainIdentifer(email);
@@ -600,7 +602,7 @@ public class JamesAliasDstServiceTest {
 		createAlias(emailUser2, alias1User2);
 		createAlias(emailUser2, alias2User2);
 		
-		testee = new JamesAliasDstService(task);
+		testee = new JamesAliasDstService(taskType);
 
 		LscModifications modifications = new LscModifications(LscModificationType.DELETE_OBJECT);
 		modifications.setMainIdentifer(email);
